@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesa de Trazado CASE</title>
+<style>
+  :root{
+    --bg:#101B26;
+    --panel:#17263447cc;
+    --panel-solid:#1B2C3B;
+    --grid-line:#22384A;
+    --ink:#E8F0F4;
+    --muted:#82A2B8;
+    --amber:#D9A94E;
+    --amber-dim:#B98A38;
+    --coral:#C1584B;
+    --line:#2A4459;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background-color:var(--bg);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:34px 34px;
+    color:var(--ink);
+    font-family:'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 16px 60px;
+  }
+  .stage{
+    width:100%;
+    max-width:640px;
+  }
+  header{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    margin-bottom:22px;
+    padding-bottom:18px;
+    border-bottom:1px solid var(--line);
+  }
+  .compass{flex:0 0 auto;margin-top:2px;}
+  header h1{
+    font-family:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+    font-size:1.5rem;
+    letter-spacing:0.01em;
+    margin:0 0 6px 0;
+    color:var(--ink);
+    font-weight:600;
+  }
+  header p{
+    margin:0;
+    color:var(--muted);
+    font-size:0.92rem;
+    line-height:1.5;
+    max-width:46ch;
+  }
+
+  /* ---------- INTRO ---------- */
+  #screen-intro .legend{
+    display:grid;
+    gap:12px;
+    margin:22px 0 26px;
+  }
+  .legend-item{
+    background:var(--panel-solid);
+    border:1px solid var(--line);
+    border-left:3px solid var(--amber);
+    padding:14px 16px;
+    clip-path:polygon(0 0, 100% 0, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  }
+  .legend-item .k{
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:0.78rem;
+    color:var(--amber);
+    display:block;
+    margin-bottom:4px;
+  }
+  .legend-item p{margin:0;font-size:0.9rem;color:var(--ink);line-height:1.5;}
+
+  button.primary{
+    background:var(--amber);
+    color:#14202B;
+    border:none;
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-weight:600;
+    font-size:0.92rem;
+    padding:13px 22px;
+    cursor:pointer;
+    letter-spacing:0.01em;
+  }
+  button.primary:hover{background:#E7B968;}
+  button.ghost{
+    background:transparent;
+    color:var(--muted);
+    border:1px solid var(--line);
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:0.85rem;
+    padding:11px 18px;
+    cursor:pointer;
+  }
+  button.ghost:hover{border-color:var(--amber-dim);color:var(--ink);}
+
+  /* ---------- GAME ---------- */
+  #screen-game{display:none;}
+  .progress{
+    display:flex;
+    gap:5px;
+    margin-bottom:20px;
+  }
+  .tick{
+    height:4px;
+    flex:1;
+    background:var(--line);
+  }
+  .tick.done{background:var(--amber);}
+  .tick.wrong{background:var(--coral);}
+
+  .card-zone{
+    display:flex;
+    justify-content:center;
+    margin-bottom:26px;
+  }
+  .tool-card{
+    background:var(--panel-solid);
+    border:1px solid var(--line);
+    border-top:3px solid var(--amber);
+    padding:32px 24px;
+    width:100%;
+    text-align:center;
+  }
+  .tool-card .tag{
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:0.72rem;
+    color:var(--muted);
+    margin-bottom:10px;
+    display:block;
+  }
+  .tool-card .name{
+    font-size:1.5rem;
+    font-weight:600;
+    color:var(--ink);
+  }
+
+  .bays{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+    margin-bottom:20px;
+  }
+  @media (max-width:560px){
+    .bays{grid-template-columns:1fr;}
+  }
+  .bay{
+    background:var(--panel-solid);
+    border:1px solid var(--line);
+    color:var(--ink);
+    text-align:left;
+    padding:14px 14px 16px;
+    cursor:pointer;
+    clip-path:polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  .bay:hover:not(:disabled){border-color:var(--amber-dim);background:#1E3244;}
+  .bay:disabled{cursor:default;opacity:0.55;}
+  .bay .bay-title{
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:0.82rem;
+    color:var(--amber);
+    display:block;
+    margin-bottom:6px;
+  }
+  .bay .bay-def{
+    font-size:0.8rem;
+    color:var(--muted);
+    line-height:1.45;
+  }
+
+  .feedback{
+    background:var(--panel-solid);
+    border:1px solid var(--line);
+    padding:18px 18px 20px;
+    display:none;
+    animation:rise 0.22s ease-out;
+  }
+  @keyframes rise{
+    from{opacity:0; transform:translateY(6px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .feedback.show{display:block;}
+  .stamp{
+    display:inline-block;
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-weight:700;
+    font-size:0.9rem;
+    letter-spacing:0.04em;
+    padding:4px 10px;
+    margin-bottom:10px;
+    transform:rotate(-2deg);
+  }
+  .stamp.ok{border:2px solid var(--amber); color:var(--amber);}
+  .stamp.no{border:2px solid var(--coral); color:var(--coral);}
+  .feedback p{margin:0 0 14px; font-size:0.9rem; line-height:1.55; color:var(--ink);}
+  .feedback p strong{color:var(--amber);}
+
+  /* ---------- END ---------- */
+  #screen-end{display:none;}
+  .score-block{
+    text-align:center;
+    padding:26px 20px;
+    background:var(--panel-solid);
+    border:1px solid var(--line);
+    margin-bottom:24px;
+  }
+  .score-block .num{
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:2.6rem;
+    color:var(--amber);
+    font-weight:700;
+  }
+  .score-block .lbl{color:var(--muted); font-size:0.85rem;}
+
+  table.ref{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:24px;
+    font-size:0.85rem;
+  }
+  table.ref th, table.ref td{
+    border:1px solid var(--line);
+    padding:9px 10px;
+    text-align:left;
+    vertical-align:top;
+  }
+  table.ref th{
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    font-size:0.75rem;
+    color:var(--amber);
+    background:#1B2C3B;
+  }
+  table.ref td.def{color:var(--muted);}
+
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <header>
+    <svg class="compass" width="30" height="30" viewBox="0 0 30 30" fill="none">
+      <circle cx="15" cy="15" r="10.5" stroke="#D9A94E" stroke-width="1.4"/>
+      <line x1="15" y1="2" x2="15" y2="8" stroke="#D9A94E" stroke-width="1.4"/>
+      <line x1="15" y1="22" x2="15" y2="28" stroke="#D9A94E" stroke-width="1.4"/>
+      <circle cx="15" cy="15" r="1.6" fill="#D9A94E"/>
+    </svg>
+    <div>
+      <h1>Mesa de Trazado CASE</h1>
+      <p>Cada herramienta llega sin etiqueta. Tu trabajo: enviarla a la estación correcta según la fase del ciclo de vida que apoya.</p>
+    </div>
+  </header>
+
+  <!-- INTRO -->
+  <div id="screen-intro">
+    <div class="legend">
+      <div class="legend-item">
+        <span class="k">01 · SUPERIORES (UPPER CASE)</span>
+        <p>Apoyan las primeras fases: planeación, análisis de requerimientos y diseño del sistema, antes de escribir código.</p>
+      </div>
+      <div class="legend-item">
+        <span class="k">02 · INFERIORES (LOWER CASE)</span>
+        <p>Apoyan las últimas fases: construcción, generación de código, pruebas y mantenimiento del sistema ya en desarrollo.</p>
+      </div>
+      <div class="legend-item">
+        <span class="k">03 · INTEGRADAS (I-CASE)</span>
+        <p>Cubren todo el ciclo de vida: unen en una sola plataforma lo que hacen las superiores y las inferiores.</p>
+      </div>
+    </div>
+    <button class="primary" onclick="startGame()">Empezar a clasificar →</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game">
+    <div class="progress" id="progress"></div>
+
+    <div class="card-zone">
+      <div class="tool-card">
+        <span class="tag" id="cardCounter">HERRAMIENTA 1 / 9</span>
+        <span class="name" id="cardName">—</span>
+      </div>
+    </div>
+
+    <div class="bays">
+      <button class="bay" data-cat="superior" onclick="answer('superior')">
+        <span class="bay-title">Superior</span>
+        <span class="bay-def">Planeación, análisis y diseño</span>
+      </button>
+      <button class="bay" data-cat="inferior" onclick="answer('inferior')">
+        <span class="bay-title">Inferior</span>
+        <span class="bay-def">Construcción, código y pruebas</span>
+      </button>
+      <button class="bay" data-cat="integrada" onclick="answer('integrada')">
+        <span class="bay-title">Integrada</span>
+        <span class="bay-def">Todo el ciclo de vida</span>
+      </button>
+    </div>
+
+    <div class="feedback" id="feedback">
+      <span class="stamp" id="stamp"></span>
+      <p id="feedbackText"></p>
+      <button class="primary" onclick="next()" id="nextBtn">Siguiente herramienta →</button>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div id="screen-end">
+    <div class="score-block">
+      <div class="num" id="finalScore">0/9</div>
+      <div class="lbl">herramientas bien clasificadas</div>
+    </div>
+
+    <table class="ref">
+      <tr><th>Tipo</th><th>Cubre</th><th>Ejemplos</th></tr>
+      <tr>
+        <td>Superior<br><span style="color:var(--muted);font-size:0.75rem;">(Upper CASE)</span></td>
+        <td class="def">Análisis y diseño</td>
+        <td id="exSuperior"></td>
+      </tr>
+      <tr>
+        <td>Inferior<br><span style="color:var(--muted);font-size:0.75rem;">(Lower CASE)</span></td>
+        <td class="def">Construcción y pruebas</td>
+        <td id="exInferior"></td>
+      </tr>
+      <tr>
+        <td>Integrada<br><span style="color:var(--muted);font-size:0.75rem;">(I-CASE)</span></td>
+        <td class="def">Ciclo de vida completo</td>
+        <td id="exIntegrada"></td>
+      </tr>
+    </table>
+
+    <button class="ghost" onclick="restart()">Volver a jugar</button>
+  </div>
+
+</div>
+
+<script>
+const CATS = {
+  superior: { label: "Superior (Upper CASE)" },
+  inferior: { label: "Inferior (Lower CASE)" },
+  integrada: { label: "Integrada (I-CASE)" }
+};
+
+const TOOLS = [
+  { name: "Rational Rose", cat: "superior", note: "Se usa para modelar y diseñar sistemas con UML antes de escribir una sola línea de código." },
+  { name: "Visible Analyst", cat: "superior", note: "Herramienta clásica para el análisis de requerimientos y el modelado de datos." },
+  { name: "ERwin Data Modeler", cat: "superior", note: "Se enfoca en el diseño de bases de datos mediante diagramas entidad-relación, previo a la construcción." },
+  { name: "Visual Studio", cat: "inferior", note: "Entorno para escribir, compilar y depurar código; apoya directamente la fase de construcción." },
+  { name: "JUnit", cat: "inferior", note: "Framework de pruebas automatizadas, usado en las etapas finales del desarrollo." },
+  { name: "Together", cat: "inferior", note: "Genera código a partir de modelos y apoya la depuración e implementación del sistema." },
+  { name: "Rational Suite", cat: "integrada", note: "Conjunto de IBM que cubre desde el análisis hasta las pruebas dentro de una sola suite." },
+  { name: "Oracle Designer/2000", cat: "integrada", note: "Permite modelar y también generar el código de bases de datos completas: cubre todo el ciclo." },
+  { name: "Visual Paradigm", cat: "integrada", note: "Combina modelado UML, generación de código y pruebas en una sola herramienta." }
+];
+
+let order = [];
+let idx = 0;
+let score = 0;
+let results = [];
+let answered = false;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildProgress(){
+  const el = document.getElementById('progress');
+  el.innerHTML = '';
+  for(let i = 0; i < TOOLS.length; i++){
+    const t = document.createElement('div');
+    t.className = 'tick';
+    t.id = 'tick-' + i;
+    el.appendChild(t);
+  }
+}
+
+function startGame(){
+  order = shuffle(TOOLS.map((_, i) => i));
+  idx = 0;
+  score = 0;
+  results = [];
+  document.getElementById('screen-intro').style.display = 'none';
+  document.getElementById('screen-game').style.display = 'block';
+  buildProgress();
+  showCard();
+}
+
+function showCard(){
+  answered = false;
+  document.getElementById('feedback').classList.remove('show');
+  document.querySelectorAll('.bay').forEach(b => b.disabled = false);
+  const tool = TOOLS[order[idx]];
+  document.getElementById('cardCounter').textContent = 'HERRAMIENTA ' + (idx + 1) + ' / ' + TOOLS.length;
+  document.getElementById('cardName').textContent = tool.name;
+}
+
+function answer(cat){
+  if(answered) return;
+  answered = true;
+  document.querySelectorAll('.bay').forEach(b => b.disabled = true);
+
+  const tool = TOOLS[order[idx]];
+  const correct = cat === tool.cat;
+  if(correct) score++;
+  results.push(correct);
+
+  const tick = document.getElementById('tick-' + idx);
+  tick.classList.add(correct ? 'done' : 'wrong');
+
+  const stamp = document.getElementById('stamp');
+  const text = document.getElementById('feedbackText');
+  if(correct){
+    stamp.textContent = 'CORRECTO';
+    stamp.className = 'stamp ok';
+    text.innerHTML = tool.note;
+  } else {
+    stamp.textContent = 'INCORRECTO';
+    stamp.className = 'stamp no';
+    text.innerHTML = '<strong>' + tool.name + '</strong> es en realidad ' + CATS[tool.cat].label + '. ' + tool.note;
+  }
+  document.getElementById('feedback').classList.add('show');
+  document.getElementById('nextBtn').textContent = (idx === TOOLS.length - 1) ? 'Ver resultado →' : 'Siguiente herramienta →';
+}
+
+function next(){
+  idx++;
+  if(idx >= TOOLS.length){
+    showEnd();
+  } else {
+    showCard();
+  }
+}
+
+function showEnd(){
+  document.getElementById('screen-game').style.display = 'none';
+  document.getElementById('screen-end').style.display = 'block';
+  document.getElementById('finalScore').textContent = score + '/' + TOOLS.length;
+
+  document.getElementById('exSuperior').textContent = TOOLS.filter(t => t.cat === 'superior').map(t => t.name).join(', ');
+  document.getElementById('exInferior').textContent = TOOLS.filter(t => t.cat === 'inferior').map(t => t.name).join(', ');
+  document.getElementById('exIntegrada').textContent = TOOLS.filter(t => t.cat === 'integrada').map(t => t.name).join(', ');
+}
+
+function restart(){
+  document.getElementById('screen-end').style.display = 'none';
+  document.getElementById('screen-intro').style.display = 'block';
+}
+</script>
+</body>
+</html>
